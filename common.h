@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
+char *formatId(int id, char *str);
+uint16_t getPort(const struct sockaddr *addr);
 void logexit(const char *msg);
 int addrparse(
     const char *addrstr, 
