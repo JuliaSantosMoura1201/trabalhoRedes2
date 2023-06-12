@@ -54,7 +54,7 @@ void unicast(int sock){
         
         strcat(buf, temp);
     }
-    strcat(buf, ").");
+    strcat(buf, ")");
 
     size_t count = send(sock, buf, strlen(buf)+1, 0);
     if(count != strlen(buf) + 1){
@@ -63,21 +63,18 @@ void unicast(int sock){
 }
 
 void broadcast(int id, char *idFormatted){
-    
-    printf("Entrou b\n");
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", id, idFormatted);
 
     for(int i = 0; i < amountOfUsers - 1; i++){
-        printf("Sock %d\n", users[i].sock);
+        printf("Buf %s\n", buf);
         size_t count = send(users[i].sock, buf, strlen(buf)+1,0);
         if(count != strlen(buf) + 1){
             logexit("send");
         }
+        printf("Count %lu\n", count);
     }
-    
-    printf("Terminoy b\n");
 }
 
 void openConnection(struct sockaddr *caddr, int csock){
@@ -87,7 +84,7 @@ void openConnection(struct sockaddr *caddr, int csock){
     formatId(newUser.id, idFormatted);
     printf("User %s added\n", idFormatted);
 
-    broadcast(newUser.id, idFormatted);
+    //broadcast(newUser.id, idFormatted);
     printf("New User sock %d\n", csock);
     unicast(csock);
     printf("Terminou unicast %d\n", csock);

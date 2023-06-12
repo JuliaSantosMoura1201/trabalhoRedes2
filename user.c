@@ -1,4 +1,5 @@
 #include "common.h"
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,6 +37,24 @@ void identifyCommand(char *command, int s){
     }
 }
 
+void *listenServer(void *socket){
+    int s = *(int *)socket;
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+    unsigned total = 0;
+    while(1){
+        size_t count = recv(s, buf + total, BUFSZ - total, 0);
+        if(buf[strlen(buf) - 1] == ')'){
+            // Connection terminated
+            break;
+        }
+        total += count;
+    }
+
+    printf("received %u bytes\n", total);
+    puts(buf);
+}
+
 int main(int argc, char **argv){
     if(argc < 3){
         usage(argc, argv);
@@ -68,28 +87,28 @@ int main(int argc, char **argv){
         printf("mensagem>");
         fgets(buf, BUFSZ -1, stdin);
 
-        //identifyCommand(buf, s);
-
         size_t count = send(s, buf, strlen(buf)+1, 0);
         if(count != strlen(buf)+1){
             logexit("send");
         }
 
-        memset(buf, 0, BUFSZ);
+        pthread_t tid;
+        pthread_create(&tid, NULL, listenServer, &s);
+
+        /*memset(buf, 0, BUFSZ);
         unsigned total = 0;
-        recv(s, buf, BUFSZ, 0);
-        /*while(1){
+        while(1){
             count = recv(s, buf + total, BUFSZ - total, 0);
-            printf("%i\n", count);
-            if(count == 0){
+            if(buf[strlen(buf) - 1] == ')'){
                 // Connection terminated
                 break;
             }
             total += count;
-        }*/
+        }
 
         printf("received %u bytes\n", total);
         puts(buf);
+        memset(buf, 0, BUFSZ);*/
     }
     
     close(s);
