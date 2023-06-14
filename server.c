@@ -25,6 +25,26 @@ struct client_data {
     struct sockaddr_storage storage;
 };
 
+/*
+void identifyCommand(char *command, int s){
+    // remove \n from command
+    command[strcspn(command, "\n")] = 0;
+    
+    if (strncmp(command, COMMAND_OPEN_CONNECTION, strlen(COMMAND_OPEN_CONNECTION)) == 0) {
+        closeConnection();
+    }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
+        listUsers();
+    }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
+        sendTo();
+    }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
+        sendToAll();
+    }}else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
+        sendToAll();
+    } else {
+        printf("command not identified\n");
+    }
+}
+*/
 
 User addUserToList(uint16_t port, int sock) {
     // adiciono na última posição disponível
@@ -68,12 +88,10 @@ void broadcast(int id, char *idFormatted){
     sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", id, idFormatted);
 
     for(int i = 0; i < amountOfUsers - 1; i++){
-        printf("Buf %s\n", buf);
         size_t count = send(users[i].sock, buf, strlen(buf)+1,0);
         if(count != strlen(buf) + 1){
             logexit("send");
         }
-        printf("Count %lu\n", count);
     }
 }
 
@@ -84,10 +102,8 @@ void openConnection(struct sockaddr *caddr, int csock){
     formatId(newUser.id, idFormatted);
     printf("User %s added\n", idFormatted);
 
-    //broadcast(newUser.id, idFormatted);
-    printf("New User sock %d\n", csock);
+    broadcast(newUser.id, idFormatted);
     unicast(csock);
-    printf("Terminou unicast %d\n", csock);
 }
 
 void *client_thread(void *data){
@@ -114,6 +130,7 @@ void *client_thread(void *data){
     close(cdata->csock);
     pthread_exit(EXIT_SUCCESS);
     */
+    pthread_exit(NULL);
     
 }
 
@@ -176,6 +193,8 @@ int main(int argc, char **argv){
 
         pthread_t tid;
         pthread_create(&tid, NULL, client_thread, cdata);
+        
+        pthread_join(tid, NULL);
     }
     exit(EXIT_SUCCESS);
 }
