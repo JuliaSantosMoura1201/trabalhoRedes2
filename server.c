@@ -8,13 +8,6 @@
 #include <unistd.h>
 
 #define BUFSZ 1024
-#define MAX_OF_USERS 15
-
-typedef struct User{
-    uint16_t port;
-    int id;
-    int sock;
-} User;
 
 User users[MAX_OF_USERS];
 int amountOfUsers = 0;
@@ -25,28 +18,7 @@ struct client_data {
     struct sockaddr_storage storage;
 };
 
-/*
-void identifyCommand(char *command, int s){
-    // remove \n from command
-    command[strcspn(command, "\n")] = 0;
-    
-    if (strncmp(command, COMMAND_OPEN_CONNECTION, strlen(COMMAND_OPEN_CONNECTION)) == 0) {
-        closeConnection();
-    }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
-        listUsers();
-    }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
-        sendTo();
-    }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
-        sendToAll();
-    }}else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
-        sendToAll();
-    } else {
-        printf("command not identified\n");
-    }
-}
-*/
-
-User addUserToList(uint16_t port, int sock) {
+User addUserToList(User *usersList, uint16_t port, int sock) {
     // adiciono na última posição disponível
     // id 
     User newUser;
@@ -54,7 +26,7 @@ User addUserToList(uint16_t port, int sock) {
     newUser.id = nextId;
     newUser.sock = sock;
 
-    users[amountOfUsers] = newUser;
+    usersList[amountOfUsers] = newUser;
 
     nextId++;
     amountOfUsers++;
@@ -65,7 +37,7 @@ void unicast(int sock){
 
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
-    sprintf(buf, "RES_LIST(");
+    sprintf(buf, "%s(", COMMAND_LIST_USERS);
 
     for(int i = 0; i < amountOfUsers - 1; i++){
         char temp[BUFSZ];
@@ -96,7 +68,7 @@ void broadcast(int id, char *idFormatted){
 }
 
 void openConnection(struct sockaddr *caddr, int csock){
-    User newUser = addUserToList(getPort(caddr), csock);
+    User newUser = addUserToList(users, getPort(caddr), csock);
     
     char idFormatted[100];
     formatId(newUser.id, idFormatted);
@@ -106,32 +78,42 @@ void openConnection(struct sockaddr *caddr, int csock){
     unicast(csock);
 }
 
+void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *cdata){
+    // remove \n from command
+    command[strcspn(command, "\n")] = 0;
+    
+    if (strncmp(command, COMMAND_OPEN_CONNECTION, strlen(COMMAND_OPEN_CONNECTION)) == 0) {
+        openConnection(caddr, cdata->csock);
+    }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
+        printf("COMMAND_CLOSE_CONNECTION\n");
+    }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
+        printf("COMMAND_MESSAGE\n");
+    }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
+        printf("COMMAND_ERROR\n");
+    }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
+         printf("COMMAND_LIST_USERS\n");
+    } else {
+        printf("command not identified\n");
+    }
+}
+
 void *client_thread(void *data){
     struct client_data *cdata = (struct client_data *)data;
     struct sockaddr *caddr = (struct sockaddr *)(&cdata->storage);
 
     char caddrstr[BUFSZ];
     addrtostr(caddr, caddrstr, BUFSZ);
-    printf("[log] connection from %s\n", caddrstr);
 
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     size_t count = recv(cdata->csock, buf, BUFSZ, 0);
-    printf("[msg] %s, %d bytes: %s \n", caddrstr, (int)count, buf);
-
-    openConnection(caddr, cdata->csock);
-    /*
-    sprintf(buf, "remote endpoint: %.1000s\n", caddrstr);
-    count = send(cdata->csock, buf, strlen(buf)+1,0);
-    if(count != strlen(buf) + 1){
-        logexit("send");
+    if(count < 0){
+        logexit("recv");
     }
-    
-    close(cdata->csock);
-    pthread_exit(EXIT_SUCCESS);
-    */
+
+    identifyCommand(buf, caddr, cdata);
+
     pthread_exit(NULL);
-    
 }
 
 void usage(int argc, char **argv){

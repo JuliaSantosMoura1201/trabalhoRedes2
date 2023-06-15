@@ -128,3 +128,33 @@ void formatId(int id, char *str){
         sprintf(str, "%d", id);
     }
 }
+
+char** splitString(const char* str, const char* delimiter, int* itemCount, int maxOfItems) {
+    char* copy = strdup(str);
+    char* token;
+    char** items = malloc(maxOfItems * sizeof(char*));
+    int count = 0;
+
+    token = strtok(copy, delimiter);
+
+    while (token != NULL && count < maxOfItems) {
+        items[count] = strdup(token);
+        count++;
+
+        token = strtok(NULL, delimiter);
+    }
+
+    *itemCount = count;
+
+    free(copy);
+
+    return items;
+}
+
+void getsMessageContent(char *command, char *destination, char *pattern){
+    int startIndex = strlen(pattern);
+    int endIndex = strlen(command) - 2;
+    
+    memcpy(destination, command + startIndex + 1, endIndex - startIndex);
+    destination[endIndex - startIndex] = '\0'; 
+}
