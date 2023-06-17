@@ -8,7 +8,11 @@
 #define COMMAND_ERROR "ERROR"
 #define COMMAND_LIST_USERS "RES_LIST"
 
-#define MAX_OF_USERS 15
+#define ERROR_CODE_USER_LIMIT_EXCEED "01"
+#define ERROR_CODE_USER_NOT_FOUND "02"
+#define ERROR_CODE_RECEIVER_NOT_FOUND "03"
+
+#define MAX_OF_USERS 3
 
 typedef struct User{
     uint16_t port;

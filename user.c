@@ -73,6 +73,25 @@ void receiveUsersOnServer(char *command){
     users = splitString(usersList, ",", &amountOfUsers, MAX_OF_USERS);
 }
 
+void identifyError(char *errorCode){
+    if (strncmp(errorCode, ERROR_CODE_USER_LIMIT_EXCEED, strlen(ERROR_CODE_USER_LIMIT_EXCEED)) == 0) {
+        puts( "User limit exceeded");
+    }else if(strncmp(errorCode, ERROR_CODE_USER_NOT_FOUND, strlen(ERROR_CODE_USER_NOT_FOUND)) == 0) {
+        puts( "User not found");
+    }else if(strncmp(errorCode, ERROR_CODE_RECEIVER_NOT_FOUND, strlen(ERROR_CODE_RECEIVER_NOT_FOUND)) == 0) {
+        puts( "Receiver not found");
+    }else{
+        logexit("Error not identified");
+    }
+}
+
+void handleError(char *command){
+    char errorCode[BUFSZ];
+    memset(errorCode, 0, BUFSZ);
+    getsMessageContent(command, errorCode, COMMAND_ERROR);
+    identifyError(errorCode);
+}
+
 void identifyCommand(char *command, int s){
     // remove \n from command
     command[strcspn(command, "\n")] = 0;
@@ -89,7 +108,9 @@ void identifyCommand(char *command, int s){
         readMessage(command);
     }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
         receiveUsersOnServer(command);
-    } 
+    }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
+        handleError(command);
+    }
     else {
         printf("command not identified\n");
     }

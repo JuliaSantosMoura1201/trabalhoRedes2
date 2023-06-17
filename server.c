@@ -33,7 +33,14 @@ User addUserToList(User *usersList, uint16_t port, int sock) {
     return newUser;
 }
 
-void unicast(int sock){
+void sendMessage(int sock, char* buf){
+    size_t count = send(sock, buf, strlen(buf)+1, 0);
+    if(count != strlen(buf) + 1){
+        logexit("send");
+    }
+}
+
+void sendListOfUsers(int sock){
 
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
@@ -67,7 +74,19 @@ void broadcast(int id, char *idFormatted){
     }
 }
 
+void sendMaxNumberOfUsersError(int sock){
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+    sprintf(buf, "%s(%s)", COMMAND_ERROR, ERROR_CODE_USER_LIMIT_EXCEED);
+
+    sendMessage(sock, buf);
+}
+
 void openConnection(struct sockaddr *caddr, int csock){
+    if(amountOfUsers == MAX_OF_USERS){
+        sendMaxNumberOfUsersError(csock);
+        return;
+    }
     User newUser = addUserToList(users, getPort(caddr), csock);
     
     char idFormatted[100];
@@ -75,7 +94,7 @@ void openConnection(struct sockaddr *caddr, int csock){
     printf("User %s added\n", idFormatted);
 
     broadcast(newUser.id, idFormatted);
-    unicast(csock);
+    sendListOfUsers(csock);
 }
 
 void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *cdata){
