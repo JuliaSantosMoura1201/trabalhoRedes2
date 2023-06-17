@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #define BUFSZ 1024
 
@@ -19,13 +20,24 @@ struct client_data {
 };
 
 User addUserToList(User *usersList, uint16_t port, int sock) {
-    // adiciono na última posição disponível
-    // id 
+
+    for(int i = 0; i < amountOfUsers; i++){
+        if(users[i].id == -1){
+            users[i].id = nextId;
+            users[i].port = port;
+            users[i].sock = sock;
+
+            nextId++;
+            amountOfUsers++;
+            return users[i];
+        }
+    }
+
     User newUser;
     newUser.port = port;
     newUser.id = nextId;
     newUser.sock = sock;
-
+    
     usersList[amountOfUsers] = newUser;
 
     nextId++;
@@ -33,15 +45,7 @@ User addUserToList(User *usersList, uint16_t port, int sock) {
     return newUser;
 }
 
-void sendMessage(int sock, char* buf){
-    size_t count = send(sock, buf, strlen(buf)+1, 0);
-    if(count != strlen(buf) + 1){
-        logexit("send");
-    }
-}
-
 void sendListOfUsers(int sock){
-
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "%s(", COMMAND_LIST_USERS);
@@ -55,46 +59,82 @@ void sendListOfUsers(int sock){
     }
     strcat(buf, ")");
 
-    size_t count = send(sock, buf, strlen(buf)+1, 0);
-    if(count != strlen(buf) + 1){
-        logexit("send");
-    }
+    sendMessage(sock, buf);
 }
 
-void broadcast(int id, char *idFormatted){
-    char buf[BUFSZ];
-    memset(buf, 0, BUFSZ);
-    sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", id, idFormatted);
-
-    for(int i = 0; i < amountOfUsers - 1; i++){
-        size_t count = send(users[i].sock, buf, strlen(buf)+1,0);
-        if(count != strlen(buf) + 1){
-            logexit("send");
+void broadcast(char *message){
+    for(int i = 0; i < amountOfUsers; i++){
+        if(users[i].id != -1){
+            sendMessage(users[i].sock, message);
         }
     }
 }
 
-void sendMaxNumberOfUsersError(int sock){
+void sendErrorMessage(int sock, char* errorCode){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
-    sprintf(buf, "%s(%s)", COMMAND_ERROR, ERROR_CODE_USER_LIMIT_EXCEED);
+    sprintf(buf, "%s(%s)", COMMAND_ERROR, errorCode);
 
     sendMessage(sock, buf);
 }
 
 void openConnection(struct sockaddr *caddr, int csock){
     if(amountOfUsers == MAX_OF_USERS){
-        sendMaxNumberOfUsersError(csock);
+        sendErrorMessage(csock, ERROR_CODE_USER_LIMIT_EXCEED);
         return;
     }
     User newUser = addUserToList(users, getPort(caddr), csock);
     
-    char idFormatted[100];
+    char idFormatted[10];
     formatId(newUser.id, idFormatted);
     printf("User %s added\n", idFormatted);
 
-    broadcast(newUser.id, idFormatted);
+    
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+    sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", newUser.id, idFormatted);
+    broadcast(buf);
+
     sendListOfUsers(csock);
+}
+
+void removeUser(int userPosition){
+    amountOfUsers--;
+    users[userPosition].id = -1;
+}
+
+void findUser(int id, int sock){
+    bool foundUser = false;
+    for(int i = 0; i < amountOfUsers; i++){
+        if(users[i].id  == id){
+            removeUser(i);
+            sendMessage(sock, OK);
+            close(sock);
+
+            char idFormatted[10];
+            formatId(id, idFormatted);
+            printf("User %s removed\n", idFormatted);
+            foundUser = true;
+        }
+    }
+
+    if(!foundUser){ 
+        sendErrorMessage(sock, ERROR_CODE_USER_NOT_FOUND);
+    }
+}
+
+void closeConnection(char *command, int sock){
+    char userFormatedId[BUFSZ];
+    memset(userFormatedId, 0, BUFSZ);
+    getsMessageContent(command, userFormatedId, COMMAND_CLOSE_CONNECTION);
+
+    int id = atoi(userFormatedId);
+    findUser(id, sock);
+
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+    sprintf(buf, "%s(%s)",COMMAND_CLOSE_CONNECTION, userFormatedId);
+    broadcast(buf);
 }
 
 void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *cdata){
@@ -104,7 +144,7 @@ void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *
     if (strncmp(command, COMMAND_OPEN_CONNECTION, strlen(COMMAND_OPEN_CONNECTION)) == 0) {
         openConnection(caddr, cdata->csock);
     }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
-        printf("COMMAND_CLOSE_CONNECTION\n");
+        closeConnection(command, cdata->csock);
     }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
         printf("COMMAND_MESSAGE\n");
     }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
@@ -112,7 +152,7 @@ void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *
     }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
          printf("COMMAND_LIST_USERS\n");
     } else {
-        printf("command not identified\n");
+        //printf("command not identified\n");
     }
 }
 
@@ -122,15 +162,19 @@ void *client_thread(void *data){
 
     char caddrstr[BUFSZ];
     addrtostr(caddr, caddrstr, BUFSZ);
+    
+    while(1){
+        char buf[BUFSZ];
+        memset(buf, 0, BUFSZ);
 
-    char buf[BUFSZ];
-    memset(buf, 0, BUFSZ);
-    size_t count = recv(cdata->csock, buf, BUFSZ, 0);
-    if(count < 0){
-        logexit("recv");
+        size_t count = recv(cdata->csock, buf, BUFSZ, 0);
+        if(count < 0){
+            logexit("recv");
+        }
+
+        identifyCommand(buf, caddr, cdata);
     }
-
-    identifyCommand(buf, caddr, cdata);
+    
 
     pthread_exit(NULL);
 }
@@ -195,7 +239,7 @@ int main(int argc, char **argv){
         pthread_t tid;
         pthread_create(&tid, NULL, client_thread, cdata);
         
-        pthread_join(tid, NULL);
+        //pthread_join(tid, NULL);
     }
     exit(EXIT_SUCCESS);
 }

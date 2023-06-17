@@ -12,6 +12,8 @@
 #define ERROR_CODE_USER_NOT_FOUND "02"
 #define ERROR_CODE_RECEIVER_NOT_FOUND "03"
 
+#define OK "OK(01)"
+
 #define MAX_OF_USERS 3
 
 typedef struct User{
@@ -56,3 +58,5 @@ void getsMessageContent(
     char *destination, 
     char *pattern
 );
+
+void sendMessage(int sock, char* buf);

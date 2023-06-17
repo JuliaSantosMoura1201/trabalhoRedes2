@@ -17,6 +17,7 @@
 
 int amountOfUsers = 0;
 char** users;
+int myId;
 
 // Variável global para indicar se as threads devem continuar em execução
 bool running = true; 
@@ -27,8 +28,12 @@ void usage(int argc, char **argv){
     exit(EXIT_FAILURE);
 }
 
-void closeConnection(){
-     printf("close connection\n");
+void closeConnection(int s){
+    char message[BUFSZ];
+    memset(message, 0, BUFSZ);
+
+    sprintf(message, "%s(%d)", COMMAND_CLOSE_CONNECTION, myId);
+    sendMessage(s, message);
 }
 
 void aksUsersList(){
@@ -52,7 +57,13 @@ void readMessage(char *command){
     char **items = splitString(msg, ",", &amountOfItems, amountOfItems);
 
     // Adiciona usuário
+    if(amountOfUsers == 0){
+        users = malloc(30 * sizeof(char*));
+        myId = atoi(items[0]);
+    }
+
     users[amountOfUsers] = items[0];
+    amountOfUsers++;
 
     // Imprime mensagem
     memset(msg, 0, BUFSZ);
@@ -70,7 +81,7 @@ void receiveUsersOnServer(char *command){
     char usersList[BUFSZ];
     memset(usersList, 0, BUFSZ);
     getsMessageContent(command, usersList, COMMAND_LIST_USERS);
-    users = splitString(usersList, ",", &amountOfUsers, MAX_OF_USERS);
+    users = splitString(usersList, ",", &amountOfUsers, 50);
 }
 
 void identifyError(char *errorCode){
@@ -92,12 +103,31 @@ void handleError(char *command){
     identifyError(errorCode);
 }
 
+void handleConnectionClosed(int s){
+    printf("Removed Successfully\n");
+    close(s);
+    exit(EXIT_SUCCESS);
+}
+
+void handleAnotherUserLeftingTheGroup(char *command){
+    char userId[BUFSZ];
+    memset(userId, 0, BUFSZ);
+    getsMessageContent(command, userId, COMMAND_CLOSE_CONNECTION);
+
+    for(int i; i<amountOfUsers; i++){
+        if(strcmp(users[i], userId) == 0){
+            users[i] = "-1";
+        }
+    }
+    printf("User %s left the group!\n", userId);
+}
+
 void identifyCommand(char *command, int s){
     // remove \n from command
     command[strcspn(command, "\n")] = 0;
     
     if (strncmp(command, USER_COMMAND_CLOSE_CONNECTION, strlen(USER_COMMAND_CLOSE_CONNECTION)) == 0) {
-        closeConnection();
+        closeConnection(s);
     }else if(strncmp(command, USER_COMMAND_LIST_USERS, strlen(USER_COMMAND_LIST_USERS)) == 0) {
         aksUsersList();
     }else if(strncmp(command, USER_COMMAND_SEND_TO, strlen(USER_COMMAND_SEND_TO)) == 0) {
@@ -110,6 +140,10 @@ void identifyCommand(char *command, int s){
         receiveUsersOnServer(command);
     }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
         handleError(command);
+    }else if(strncmp(command, OK, strlen(OK)) == 0) {
+        handleConnectionClosed(s);
+    }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
+        handleAnotherUserLeftingTheGroup(command);
     }
     else {
         printf("command not identified\n");
@@ -158,10 +192,7 @@ void *readKeyboard(void *socket){
         printf("mensagem>");
         fgets(buf, BUFSZ -1, stdin);
 
-        size_t count = send(s, buf, strlen(buf)+1, 0);
-        if(count != strlen(buf)+1){
-            logexit("send");
-        }
+        sendMessage(s, buf);
     }
     /*
         identifica o comando do user aqui
@@ -172,10 +203,7 @@ void *readKeyboard(void *socket){
 }
 
 void openConnection(int s){
-    size_t count = send(s, COMMAND_OPEN_CONNECTION, strlen(COMMAND_OPEN_CONNECTION)+1, 0);
-    if(count != strlen(COMMAND_OPEN_CONNECTION)+1){
-        logexit("send");
-    }
+    sendMessage(s, COMMAND_OPEN_CONNECTION);
 }
 
 int main(int argc, char **argv){
@@ -229,18 +257,15 @@ int main(int argc, char **argv){
             }
             total += count;
         }
-        identifyCommand(buf, s);
         puts(buf);
+        identifyCommand(buf, s);
         
         memset(buf, 0, BUFSZ);
         printf("mensagem>");
         fgets(buf, BUFSZ -1, stdin);
         identifyCommand(buf, s);
 
-        size_t count = send(s, buf, strlen(buf)+1, 0);
-        if(count != strlen(buf)+1){
-            logexit("send");
-        }
+        sendMessage(s, buf);
         
     }
 

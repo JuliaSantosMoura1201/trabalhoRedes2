@@ -158,3 +158,10 @@ void getsMessageContent(char *command, char *destination, char *pattern){
     memcpy(destination, command + startIndex + 1, endIndex - startIndex);
     destination[endIndex - startIndex] = '\0'; 
 }
+
+void sendMessage(int sock, char* buf){
+    size_t count = send(sock, buf, strlen(buf)+1, 0);
+    if(count != strlen(buf) + 1){
+        logexit("send");
+    }
+}
