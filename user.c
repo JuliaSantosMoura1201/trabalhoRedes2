@@ -18,6 +18,8 @@
 int amountOfUsers = 0;
 char** users;
 int myId;
+char destinationId[BUFSZ];
+char privateMessage[BUFSZ];
 
 // Variável global para indicar se as threads devem continuar em execução
 bool running = true; 
@@ -40,12 +42,38 @@ void aksUsersList(){
      printf("list users\n");
 }
 
-void sendTo(){
-     printf("send to\n");
+void sendTo(char *command, int sock){
+    memset(destinationId, 0, BUFSZ);
+    int startIndex = strlen(USER_COMMAND_SEND_TO);
+    int endIndex = strlen(USER_COMMAND_SEND_TO) + 3;
+    memcpy(destinationId, command + startIndex + 1, endIndex - startIndex);
+    destinationId[endIndex - startIndex] = '\0';
+
+    char idFormatted[10];
+    formatId(myId, idFormatted);
+
+    memcpy(privateMessage, command + endIndex + 1, strlen(command));
+    privateMessage[strlen(command) - endIndex] = '\0';
+
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+    sprintf(buf, "MSG(%s, %s)", destinationId, idFormatted);
+    sendMessage(sock, buf);
 }
 
-void sendToAll(){
-     printf("send all\n");
+void sendToAll(char *command, int sock){
+    int startIndex = strlen(USER_COMMAND_SEND_TO_ALL);
+    char message[BUFSZ];
+    memcpy(message, command + startIndex + 1, strlen(command));
+    message[strlen(command) - startIndex] = '\0';
+
+    char idFormatted[10];
+    formatId(myId, idFormatted);
+
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+    sprintf(buf, "MSG(%s, NULL, %s)", idFormatted, message);
+    sendMessage(sock, buf);
 }
 
 void readMessage(char *command){
@@ -122,6 +150,18 @@ void handleAnotherUserLeftingTheGroup(char *command){
     printf("User %s left the group!\n", userId);
 }
 
+void sendPrivateMessage(int sock){
+    char buf[BUFSZ];
+    memset(buf, 0, BUFSZ);
+
+    char idFormatted[10];
+    formatId(myId, idFormatted);
+
+    sprintf(buf, "MSG(%s, %s, %s)", idFormatted, destinationId, privateMessage);
+    sendMessage(sock, buf);
+    printf("Private message\n");
+}
+
 void identifyCommand(char *command, int s){
     // remove \n from command
     command[strcspn(command, "\n")] = 0;
@@ -131,9 +171,9 @@ void identifyCommand(char *command, int s){
     }else if(strncmp(command, USER_COMMAND_LIST_USERS, strlen(USER_COMMAND_LIST_USERS)) == 0) {
         aksUsersList();
     }else if(strncmp(command, USER_COMMAND_SEND_TO, strlen(USER_COMMAND_SEND_TO)) == 0) {
-        sendTo();
+        sendTo(command, s);
     }else if(strncmp(command, USER_COMMAND_SEND_TO_ALL, strlen(USER_COMMAND_SEND_TO_ALL)) == 0) {
-        sendToAll();
+        sendToAll(command, s);
     }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
         readMessage(command);
     }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
@@ -142,6 +182,8 @@ void identifyCommand(char *command, int s){
         handleError(command);
     }else if(strncmp(command, OK, strlen(OK)) == 0) {
         handleConnectionClosed(s);
+    }else if(strncmp(command, P_OK, strlen(P_OK)) == 0) {
+        sendPrivateMessage(s);
     }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
         handleAnotherUserLeftingTheGroup(command);
     }

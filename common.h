@@ -13,6 +13,7 @@
 #define ERROR_CODE_RECEIVER_NOT_FOUND "03"
 
 #define OK "OK(01)"
+#define P_OK "OK(02)"
 
 #define MAX_OF_USERS 3
 

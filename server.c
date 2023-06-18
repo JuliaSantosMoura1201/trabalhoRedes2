@@ -89,7 +89,6 @@ void openConnection(struct sockaddr *caddr, int csock){
     formatId(newUser.id, idFormatted);
     printf("User %s added\n", idFormatted);
 
-    
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", newUser.id, idFormatted);
@@ -137,6 +136,62 @@ void closeConnection(char *command, int sock){
     broadcast(buf);
 }
 
+void readPrivateMessage(char **items, int sock, int amountOfItems){
+    bool foundUser = false;
+    for(int i = 0; i < amountOfUsers; i++){
+        if(users[i].id  == atoi(items[0])){
+            foundUser = true;
+        }
+    }
+
+    if(foundUser){
+        sendMessage(sock, P_OK);
+    }else{
+        sendErrorMessage(sock, ERROR_CODE_RECEIVER_NOT_FOUND);
+    }
+
+    for (int i = 0; i < amountOfItems; i++) {
+        free(items[i]);
+    }
+
+    free(items);
+}
+
+void sendPublicMessage(char **items, char *command){
+    if(strcmp("NULL", items[1]) == 0){
+        for(int i = 0; i < amountOfUsers; i++){
+            if(users[i].id  == atoi(items[1])){
+                printf("Public message\n");
+                sendMessage(users[i].sock, command);
+            }
+        }
+    }else {
+        printf("Item 0: %s Item 1: %s Item 2: %s\n", items[0], items[1], items[2]);
+        printf("Comand %s", command);
+        broadcast(items[2]);
+    }
+    
+}
+
+void readMessage(char *command, int sock){
+    char msg[BUFSZ];
+    memset(msg, 0, BUFSZ);
+    getsMessageContent(command, msg, COMMAND_MESSAGE);
+
+    int amountOfItems = 3;
+    char **items = splitString(msg, ",", &amountOfItems, amountOfItems);
+
+    if(amountOfItems == 2){
+        printf("PRIVATE\n");
+        readPrivateMessage(items, sock, amountOfItems);
+    }else if(amountOfItems == 3){
+        printf("PUBLIC\n");
+        
+        sendPublicMessage(items, command);
+    }
+}
+
+
 void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *cdata){
     // remove \n from command
     command[strcspn(command, "\n")] = 0;
@@ -146,7 +201,7 @@ void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *
     }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
         closeConnection(command, cdata->csock);
     }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
-        printf("COMMAND_MESSAGE\n");
+       readMessage(command, cdata->csock);
     }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
         printf("COMMAND_ERROR\n");
     }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
