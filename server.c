@@ -167,7 +167,6 @@ void sendPublicMessage(char **items, char *command){
         }
     }else {
         printf("Item 0: %s Item 1: %s Item 2: %s\n", items[0], items[1], items[2]);
-        printf("Comand %s", command);
         broadcast(items[2]);
     }
     

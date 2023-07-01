@@ -211,36 +211,21 @@ void *listenServer(void *socket){
     int s = *(int *)socket;
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
-    unsigned total = 0;
+
     while(1){
-        size_t count = recv(s, buf + total, BUFSZ - total, 0);
-        if(buf[strlen(buf) - 1] == ')'){
-            // Connection terminated
-            break;
+        unsigned total = 0;
+        while(1){
+            size_t count = recv(s, buf + total, BUFSZ - total, 0);
+            if(buf[strlen(buf) - 1] == ')'){
+                // Connection terminated
+                break;
+            }
+            total += count;
         }
-        total += count;
+        puts(buf);
+        identifyCommand(buf, s);
+        memset(buf, 0, BUFSZ);    
     }
-    puts(buf);
-    
-    pthread_exit(NULL);
-}
-
-void *readKeyboard(void *socket){
-    int s = *(int *)socket;
-
-    while(1){
-        char buf[BUFSZ];
-        memset(buf, 0, BUFSZ);
-        printf("mensagem>");
-        fgets(buf, BUFSZ -1, stdin);
-
-        sendMessage(s, buf);
-    }
-    /*
-        identifica o comando do user aqui
-        close threads muda running para false
-    */
-    
     pthread_exit(NULL);
 }
 
@@ -275,35 +260,13 @@ int main(int argc, char **argv){
     addrtostr(addr, addrstr, BUFSZ);
 
     printf("connected to %s\n", addrstr);
-    
-    /*
-        pthread_t threadListenServer;
-        pthread_create(&threadListenServer, NULL, listenServer, &s);
-
-        pthread_t readListenKeyboard;
-        pthread_create(&readListenKeyboard, NULL, readKeyboard, &s);
-
-        pthread_join(threadListenServer, NULL);
-        pthread_join(readListenKeyboard, NULL);
-    */
+   
+    pthread_t threadListenServer;
+    pthread_create(&threadListenServer, NULL, listenServer, &s);
 
     while(1){
         char buf[BUFSZ];
         memset(buf, 0, BUFSZ);
-        unsigned total = 0;
-        while(1){
-            size_t count = recv(s, buf + total, BUFSZ - total, 0);
-            if(buf[strlen(buf) - 1] == ')'){
-                // Connection terminated
-                break;
-            }
-            total += count;
-        }
-        puts(buf);
-        identifyCommand(buf, s);
-        
-        memset(buf, 0, BUFSZ);
-        printf("mensagem>");
         fgets(buf, BUFSZ -1, stdin);
         identifyCommand(buf, s);
 
