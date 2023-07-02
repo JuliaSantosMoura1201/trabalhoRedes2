@@ -15,7 +15,7 @@
 #define OK "OK(01)"
 #define P_OK "OK(02)"
 
-#define MAX_OF_USERS 4
+#define MAX_OF_USERS 15
 
 typedef struct User{
     uint16_t port;
