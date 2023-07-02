@@ -22,8 +22,6 @@ int myId = -1;
 char destinationId[BUFSZ];
 char privateMessage[BUFSZ];
 
-// Variável global para indicar se as threads devem continuar em execução
-bool running = true; 
 
 void usage(int argc, char **argv){
     printf("usage: %s <server IP> <server port>", argv[0]);
@@ -40,9 +38,6 @@ void closeConnection(int s){
 }
 
 void aksUsersList(){
-    printf("   >>> X USER LIST %p %zu", users, sizeof(users));
-    printf("Amount of users: %d\n", amountOfUsers);
-    printf("X user list = %p, users[0]= %s\n", users, users[0]);
     for (int i = 0; i < amountOfUsers; i++) {
         if(strcmp(users[i], "-1") != 0){
             printf("%s ", users[i]);
@@ -67,7 +62,6 @@ void sendTo(char *command, int sock){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%s, %s)", destinationId, idFormatted);
-    printf("Send to function\n");
     sendMessage(sock, buf);
 }
 
@@ -83,7 +77,6 @@ void sendToAll(char *command, int sock){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%s, NULL, %s)", idFormatted, message);
-    printf("sendToAll\n");
     sendMessage(sock, buf);
 }
 
@@ -99,12 +92,8 @@ void readMessage(char *command){
     if(myId == -1){
         myId = atoi(items[0]);
     }else{
-        // verifica se é uma mensagem qualquer
-        if(items[2][1] == '['){
-            puts(items[2]);
-        }
-        // ou se um usuário entrou na rede
-        else{
+        // verifica se não é uma mensagem pública nem privada
+        if(items[2][1] != '[' && items[2][1] != 'P'){
             char idFormatted[10];
             formatId(atoi(items[0]), idFormatted);
             strcpy(users[amountOfUsers], idFormatted);
@@ -129,7 +118,6 @@ void receiveUsersOnServer(char *command){
     char usersList[BUFSZ];
     memset(usersList, 0, BUFSZ);
     getsMessageContent(command, usersList, COMMAND_LIST_USERS);
-    printf("receive userList %s \n", usersList);
     char **newUsers = splitString(usersList, ",", &amountOfUsers, 50);
     for (int i = 0; i < amountOfUsers; ++i) {  
         char idFormatted[10];
@@ -138,8 +126,6 @@ void receiveUsersOnServer(char *command){
         free(newUsers[i]);
     }
     free(newUsers);
-    printf("users %s \n", users[0]);
-    //printf("receiveUsersOnServer %p %zu\n", users, sizeof(users));
 }
 
 void identifyError(char *errorCode){
@@ -174,12 +160,10 @@ void handleAnotherUserLeftingTheGroup(char *command){
     
     char idFormatted[10];
     formatId(atoi(userId), idFormatted);
-    printf("MessageContent: %s\n", userId);
 
     for(int i; i<amountOfUsers; i++){
         if(strcmp(users[i], idFormatted) == 0){
             strcpy(users[i], "-1");
-            printf("Removeu\n");
         }
     }
 
@@ -205,7 +189,6 @@ void sendPrivateMessage(int sock){
     memset(finalDestinationId, 0, BUFSZ);
     strncpy(finalDestinationId, destinationId, strlen(destinationId)-1);
 
-
     char confirmationPrivateMessage[BUFSZ];
     memset(confirmationPrivateMessage, 0, BUFSZ);
     sprintf(confirmationPrivateMessage, "P [%02d:%02d] -> %s: %s", localTime->tm_hour, localTime->tm_min, finalDestinationId, privateMessage);
@@ -216,49 +199,28 @@ void sendPrivateMessage(int sock){
 void identifyCommand(char *command, int s){
     // remove \n from command
     command[strcspn(command, "\n")] = 0;
-    printf("Identify command: %s\n", command);
     
     if (strncmp(command, USER_COMMAND_CLOSE_CONNECTION, strlen(USER_COMMAND_CLOSE_CONNECTION)) == 0) {
-        printf("Close connection\n");
         closeConnection(s);
     }else if(strncmp(command, USER_COMMAND_LIST_USERS, strlen(USER_COMMAND_LIST_USERS)) == 0) {
-        printf("aksUsersList\n");
         aksUsersList();
     }else if(strncmp(command, USER_COMMAND_SEND_TO, strlen(USER_COMMAND_SEND_TO)) == 0) {
-        printf("sendTo\n");
         sendTo(command, s);
     }else if(strncmp(command, USER_COMMAND_SEND_TO_ALL, strlen(USER_COMMAND_SEND_TO_ALL)) == 0) {
-        printf("sendToAll\n");
         sendToAll(command, s);
     }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
-        printf("readMessage\n");
         readMessage(command);
     }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
-        printf("receiveUsersOnServer\n");
         receiveUsersOnServer(command);
-        printf("if identify command %s\n", users[0]);
     }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
-        printf("handleError\n");
         handleError(command);
     }else if(strncmp(command, OK, strlen(OK)) == 0) {
-        printf("handleConnectionClosed\n");
         handleConnectionClosed(s);
     }else if(strncmp(command, P_OK, strlen(P_OK)) == 0) {
-        printf("sendPrivateMessage\n");
         sendPrivateMessage(s);
     }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
-        printf("handleAnotherUserLeftingTheGroup\n");
-        
-        puts(command);
-
-        //  GAMBIARRAAAAAAAAAAAAAAA
-        /*char temp[BUFSZ];
-        memset(temp, 0, BUFSZ);
-        strncpy(temp, command, strlen(command)-1);
-        printf("Gambiearra: %s\n", temp);*/
         handleAnotherUserLeftingTheGroup(command);
-    }
-    else {
+    }else {
         printf("command not identified\n");
     }
 }
@@ -273,13 +235,11 @@ void *listenServer(void *socket){
         while(1){
             size_t count = recv(s, buf + total, BUFSZ - total, 0);
             total += count;
-            printf("Count %zu\n", count);
             if(buf[strlen(buf) - 1] == ')'){
                 // Connection terminated
                 break;
             }
         }
-        puts(buf);
         
         int i = 0;
         int commandStart = 0;
@@ -287,13 +247,10 @@ void *listenServer(void *socket){
             if (buf[i] == ')') {
                 char command[BUFSZ];
                 memset(command, 0, BUFSZ);
-               // printf("Command start: %d, i = \n", commandStart);
                 strncpy(command, buf + commandStart, i+1);
                 command[i+2] = '\0';
-                printf(">> command = %s\n", command);
                 identifyCommand(command, s);
                 commandStart = i +2;
- //               printf(">> COMMAND START: %i %i\n", buf[commandStart], '\n');
             }
         }
         
@@ -303,7 +260,6 @@ void *listenServer(void *socket){
 }
 
 void openConnection(int s){
-    printf("openConnection\n");
     sendMessage(s, COMMAND_OPEN_CONNECTION);
 }
 
