@@ -17,7 +17,7 @@
 
 int amountOfUsers = 0;
 char** users;
-int myId;
+int myId = -1;
 char destinationId[BUFSZ];
 char privateMessage[BUFSZ];
 
@@ -39,7 +39,13 @@ void closeConnection(int s){
 }
 
 void aksUsersList(){
-     printf("list users\n");
+    printf("   >>> X USER LIST %p %zu", users, sizeof(users));
+    printf("Amount of users: %d\n", amountOfUsers);
+    printf("X user list = %p, users[0]= %s\n", users, users[0]);
+    for (int i = 0; i < amountOfUsers; i++) {
+        printf("User: %s ", users[i]);
+    }
+    printf("\n");
 }
 
 void sendTo(char *command, int sock){
@@ -58,6 +64,7 @@ void sendTo(char *command, int sock){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%s, %s)", destinationId, idFormatted);
+    printf("Send to function\n");
     sendMessage(sock, buf);
 }
 
@@ -73,6 +80,7 @@ void sendToAll(char *command, int sock){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%s, NULL, %s)", idFormatted, message);
+    printf("sendToAll\n");
     sendMessage(sock, buf);
 }
 
@@ -85,13 +93,17 @@ void readMessage(char *command){
     char **items = splitString(msg, ",", &amountOfItems, amountOfItems);
 
     // Adiciona usuário
-    if(amountOfUsers == 0){
-        users = malloc(30 * sizeof(char*));
+    if(myId == -1){
+        //users = malloc(30 * sizeof(char*));
+        //printf("readMessage if %p %zu", users, sizeof(users));
         myId = atoi(items[0]);
-    }
+    }else{
+        users[amountOfUsers] = items[0];
+        printf("readMessage else %p %zu\n", users, sizeof(users));
 
-    users[amountOfUsers] = items[0];
-    amountOfUsers++;
+        amountOfUsers++;
+        printf("YYY User: %s %p %i\n", users[0], users, amountOfUsers);
+    }
 
     // Imprime mensagem
     memset(msg, 0, BUFSZ);
@@ -109,7 +121,10 @@ void receiveUsersOnServer(char *command){
     char usersList[BUFSZ];
     memset(usersList, 0, BUFSZ);
     getsMessageContent(command, usersList, COMMAND_LIST_USERS);
+    printf("receive userList %s \n", usersList);
     users = splitString(usersList, ",", &amountOfUsers, 50);
+    printf("users %s \n", users[0]);
+    //printf("receiveUsersOnServer %p %zu\n", users, sizeof(users));
 }
 
 void identifyError(char *errorCode){
@@ -158,6 +173,7 @@ void sendPrivateMessage(int sock){
     formatId(myId, idFormatted);
 
     sprintf(buf, "MSG(%s, %s, %s)", idFormatted, destinationId, privateMessage);
+    printf("sendPrivateMessage\n");
     sendMessage(sock, buf);
     printf("Private message\n");
 }
@@ -165,26 +181,38 @@ void sendPrivateMessage(int sock){
 void identifyCommand(char *command, int s){
     // remove \n from command
     command[strcspn(command, "\n")] = 0;
+    printf("Identify command: %s\n", command);
     
     if (strncmp(command, USER_COMMAND_CLOSE_CONNECTION, strlen(USER_COMMAND_CLOSE_CONNECTION)) == 0) {
+        printf("Close connection\n");
         closeConnection(s);
     }else if(strncmp(command, USER_COMMAND_LIST_USERS, strlen(USER_COMMAND_LIST_USERS)) == 0) {
+        printf("aksUsersList\n");
         aksUsersList();
     }else if(strncmp(command, USER_COMMAND_SEND_TO, strlen(USER_COMMAND_SEND_TO)) == 0) {
+        printf("sendTo\n");
         sendTo(command, s);
     }else if(strncmp(command, USER_COMMAND_SEND_TO_ALL, strlen(USER_COMMAND_SEND_TO_ALL)) == 0) {
+        printf("sendToAll\n");
         sendToAll(command, s);
     }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
+        printf("readMessage\n");
         readMessage(command);
     }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
+        printf("receiveUsersOnServer\n");
         receiveUsersOnServer(command);
+        printf("if identify command %s\n", users[0]);
     }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
+        printf("handleError\n");
         handleError(command);
     }else if(strncmp(command, OK, strlen(OK)) == 0) {
+        printf("handleConnectionClosed\n");
         handleConnectionClosed(s);
     }else if(strncmp(command, P_OK, strlen(P_OK)) == 0) {
+        printf("sendPrivateMessage\n");
         sendPrivateMessage(s);
     }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
+        printf("handleAnotherUserLeftingTheGroup\n");
         handleAnotherUserLeftingTheGroup(command);
     }
     else {
@@ -216,20 +244,48 @@ void *listenServer(void *socket){
         unsigned total = 0;
         while(1){
             size_t count = recv(s, buf + total, BUFSZ - total, 0);
+            total += count;
+            printf("Count %zu\n", count);
             if(buf[strlen(buf) - 1] == ')'){
                 // Connection terminated
                 break;
             }
-            total += count;
         }
         puts(buf);
-        identifyCommand(buf, s);
-        memset(buf, 0, BUFSZ);    
+        
+        int i = 0;
+        int commandStart = 0;
+        for (i = 0; i < total; ++i) {
+//            printf("buf[%i] = %c ->\n", i, buf[i]);
+            /*if (buf[i] == '\n') {
+                commandStart = i+1; 
+            }*/
+
+            if (buf[i] == ')') {
+                char command[BUFSZ];
+                strncpy(command, buf + commandStart, i+1);
+                command[i+2] = '\0';
+                printf(">> command = %s\n", command);
+                identifyCommand(command, s);
+                commandStart = i +1;
+ //               printf(">> COMMAND START: %i %i\n", buf[commandStart], '\n');
+            }
+        }
+/*
+        int amountOfItems = 10;
+        char **items = splitString(buf, ")", &amountOfItems, amountOfItems);
+        printf("%d", amountOfItems);
+        for(int i = 0; buf[i]; i++){
+           printf("Item[%d] = %s\n", i, items[i]);
+            identifyCommand(items[i], s);
+        } */
+        memset(buf, 0, BUFSZ);   
     }
     pthread_exit(NULL);
 }
 
 void openConnection(int s){
+    printf("openConnection\n");
     sendMessage(s, COMMAND_OPEN_CONNECTION);
 }
 
@@ -269,9 +325,6 @@ int main(int argc, char **argv){
         memset(buf, 0, BUFSZ);
         fgets(buf, BUFSZ -1, stdin);
         identifyCommand(buf, s);
-
-        sendMessage(s, buf);
-        
     }
 
     close(s);

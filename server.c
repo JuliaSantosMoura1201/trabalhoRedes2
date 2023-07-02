@@ -50,6 +50,8 @@ void sendListOfUsers(int sock){
     memset(buf, 0, BUFSZ);
     sprintf(buf, "%s(", COMMAND_LIST_USERS);
 
+    printf("  sendListOfUsers 1\n");
+
     for(int i = 0; i < amountOfUsers - 1; i++){
         char temp[BUFSZ];
         memset(temp, 0, BUFSZ);
@@ -58,6 +60,10 @@ void sendListOfUsers(int sock){
         strcat(buf, temp);
     }
     strcat(buf, ")");
+    buf[strlen(buf)] = '\0';
+
+    printf("%s\n", buf);
+    printf("  sendListOfUsers sock =  %i\n", sock);
 
     sendMessage(sock, buf);
 }
@@ -65,6 +71,7 @@ void sendListOfUsers(int sock){
 void broadcast(char *message){
     for(int i = 0; i < amountOfUsers; i++){
         if(users[i].id != -1){
+            printf("  broadcast sock %i %s\n", users[i].sock, message);
             sendMessage(users[i].sock, message);
         }
     }
@@ -88,13 +95,15 @@ void openConnection(struct sockaddr *caddr, int csock){
     char idFormatted[10];
     formatId(newUser.id, idFormatted);
     printf("User %s added\n", idFormatted);
+    sendListOfUsers(csock);
 
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", newUser.id, idFormatted);
+    buf[strlen(buf)] = '\0';
     broadcast(buf);
 
-    sendListOfUsers(csock);
+    printf("  open connection before send list\n");
 }
 
 void removeUser(int userPosition){

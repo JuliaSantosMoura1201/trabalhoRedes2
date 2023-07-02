@@ -138,6 +138,7 @@ char** splitString(const char* str, const char* delimiter, int* itemCount, int m
     token = strtok(copy, delimiter);
 
     while (token != NULL && count < maxOfItems) {
+        items[count] = malloc(2 * sizeof(char));
         items[count] = strdup(token);
         count++;
 
@@ -161,6 +162,7 @@ void getsMessageContent(char *command, char *destination, char *pattern){
 
 void sendMessage(int sock, char* buf){
     size_t count = send(sock, buf, strlen(buf)+1, 0);
+    printf("  sendMessage message = %s count = %zu strlen= %zu\n", buf, count, strlen(buf) + 1);
     if(count != strlen(buf) + 1){
         logexit("send");
     }
