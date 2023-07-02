@@ -22,20 +22,6 @@ struct client_data {
 };
 
 User addUserToList(User *usersList, uint16_t port, int sock) {
-
-    for(int i = 0; i < amountOfUsers; i++){
-        if(users[i].id == -1){
-            users[i].id = nextId;
-            users[i].port = port;
-            users[i].sock = sock;
-
-            nextId++;
-            amountOfUsers++;
-            amountOfValidUsers++;
-            return users[i];
-        }
-    }
-
     User newUser;
     newUser.port = port;
     newUser.id = nextId;
@@ -55,11 +41,13 @@ void sendListOfUsers(int sock){
     sprintf(buf, "%s(", COMMAND_LIST_USERS);
 
     for(int i = 0; i < amountOfUsers - 1; i++){
-        char temp[BUFSZ];
-        memset(temp, 0, BUFSZ);
-        sprintf(temp, "%d,", users[i].id);
-        
-        strcat(buf, temp);
+        if(users[i].id != -1){
+            char temp[BUFSZ];
+            memset(temp, 0, BUFSZ);
+            sprintf(temp, "%d,", users[i].id);
+            
+            strcat(buf, temp);
+        }
     }
     strcat(buf, ")");
     buf[strlen(buf)] = '\0';
