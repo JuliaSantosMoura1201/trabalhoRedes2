@@ -93,25 +93,23 @@ void readMessage(char *command){
 
     int amountOfItems = 3;
     char **items = splitString(msg, ",", &amountOfItems, amountOfItems);
-    printf(">> items %p\n", items);
 
     // Adiciona usuário
     if(myId == -1){
-        //users = malloc(30 * sizeof(char*));
-        //printf("readMessage if %p %zu", users, sizeof(users));
         myId = atoi(items[0]);
     }else{
-        char idFormatted[10];
-        formatId(atoi(items[0]), idFormatted);
+        // verifica se é uma mensagem qualquer
+        if(items[2][1] == '['){
+            puts(items[2]);
+        }
+        // ou se um usuário entrou na rede
+        else{
+            char idFormatted[10];
+            formatId(atoi(items[0]), idFormatted);
+            strcpy(users[amountOfUsers], idFormatted);
+            amountOfUsers++;
+        }
 
-        strcpy(users[amountOfUsers], idFormatted);
-        //users[amountOfUsers] = malloc(2 * sizeof(char));
-        printf(">> users[0] = %p\n", users[0]);
-        //users[amountOfUsers] = items[0];
-        printf("readMessage else %p %p %p\n", users, items[0], users[0]);
-
-        amountOfUsers++;
-        printf("YYY User: %s %p %i\n", users[0], users, amountOfUsers);
     }
 
     // Imprime mensagem

@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define BUFSZ 1024
 
@@ -74,7 +75,7 @@ void sendListOfUsers(int sock){
 void broadcast(char *message){
     printf("Amount of users %d\n", amountOfUsers);
     for(int i = 0; i < amountOfUsers; i++){
-        printf("ID users[%d].id = %d", i, users[i].id );
+        printf("ID users[%d].id = %d\n", i, users[i].id );
         if(users[i].id != -1){
             printf("  broadcast sock %i %s\n", users[i].sock, message);
             sendMessage(users[i].sock, message);
@@ -172,7 +173,35 @@ void readPrivateMessage(char **items, int sock, int amountOfItems){
     free(items);
 }
 
-void sendPublicMessage(char **items, char *command){
+void sendMessageWithTimer(char *idUserTranmmissor, char *originalMessage, int sock){
+    time_t currentTime;
+    struct tm* localTime;
+    currentTime = time(NULL);
+    localTime = localtime(&currentTime);
+    printf("Current time: %02d:%02d\n", localTime->tm_hour, localTime->tm_min);
+
+    
+    char messageToUsers[BUFSZ];
+    memset(messageToUsers, 0, BUFSZ);
+    sprintf(messageToUsers, "MSG(%d, NULL, [%02d:%02d] %s:%s)", atoi(idUserTranmmissor), localTime->tm_hour, localTime->tm_min, idUserTranmmissor, originalMessage);
+    printf("Message to users\n");
+    puts(messageToUsers);
+    for(int i = 0; i < amountOfUsers; i++){
+        if(users[i].id != -1 && users[i].id != sock){
+            sendMessage(users[i].sock, messageToUsers);
+        }
+    }
+
+    
+    char messageToTransmiter[BUFSZ];
+    memset(messageToTransmiter, 0, BUFSZ);
+    sprintf(messageToTransmiter, "MSG(%d, NULL, [%02d:%02d] -> all:%s)", atoi(idUserTranmmissor), localTime->tm_hour, localTime->tm_min, originalMessage);
+    printf("Message to transmiter\n");
+    puts(messageToTransmiter);
+    sendMessage(sock, messageToTransmiter);
+}
+
+void sendPublicMessage(char **items, char *command, int sock){
     if(strcmp("NULL", items[1]) == 0){
         for(int i = 0; i < amountOfUsers; i++){
             if(users[i].id  == atoi(items[1])){
@@ -182,7 +211,7 @@ void sendPublicMessage(char **items, char *command){
         }
     }else {
         printf("Item 0: %s Item 1: %s Item 2: %s\n", items[0], items[1], items[2]);
-        broadcast(items[2]);
+        sendMessageWithTimer(items[0], items[2], sock);
     }
     
 }
@@ -201,7 +230,7 @@ void readMessage(char *command, int sock){
     }else if(amountOfItems == 3){
         printf("PUBLIC\n");
         
-        sendPublicMessage(items, command);
+        sendPublicMessage(items, command, sock);
     }
 }
 
