@@ -138,7 +138,7 @@ char** splitString(const char* str, const char* delimiter, int* itemCount, int m
     token = strtok(copy, delimiter);
 
     while (token != NULL && count < maxOfItems) {
-        items[count] = malloc(2 * sizeof(char));
+//        items[count] = malloc(2 * sizeof(char));
         items[count] = strdup(token);
         count++;
 

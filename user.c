@@ -16,7 +16,7 @@
 #define USER_COMMAND_SEND_TO_ALL "send all"
 
 int amountOfUsers = 0;
-char** users;
+char users[30][3];
 int myId = -1;
 char destinationId[BUFSZ];
 char privateMessage[BUFSZ];
@@ -91,6 +91,7 @@ void readMessage(char *command){
 
     int amountOfItems = 3;
     char **items = splitString(msg, ",", &amountOfItems, amountOfItems);
+    printf(">> items %p\n", items);
 
     // Adiciona usuário
     if(myId == -1){
@@ -98,8 +99,11 @@ void readMessage(char *command){
         //printf("readMessage if %p %zu", users, sizeof(users));
         myId = atoi(items[0]);
     }else{
-        users[amountOfUsers] = items[0];
-        printf("readMessage else %p %zu\n", users, sizeof(users));
+        strcpy(users[amountOfUsers], items[0]);
+        //users[amountOfUsers] = malloc(2 * sizeof(char));
+        printf(">> users[0] = %p\n", users[0]);
+        //users[amountOfUsers] = items[0];
+        printf("readMessage else %p %p %p\n", users, items[0], users[0]);
 
         amountOfUsers++;
         printf("YYY User: %s %p %i\n", users[0], users, amountOfUsers);
@@ -122,7 +126,12 @@ void receiveUsersOnServer(char *command){
     memset(usersList, 0, BUFSZ);
     getsMessageContent(command, usersList, COMMAND_LIST_USERS);
     printf("receive userList %s \n", usersList);
-    users = splitString(usersList, ",", &amountOfUsers, 50);
+    char **newUsers = splitString(usersList, ",", &amountOfUsers, 50);
+    for (int i = 0; i < amountOfUsers; ++i) {
+        strcpy(users[i], newUsers[i]);
+        free(newUsers[i]);
+    }
+    free(newUsers);
     printf("users %s \n", users[0]);
     //printf("receiveUsersOnServer %p %zu\n", users, sizeof(users));
 }
@@ -159,7 +168,7 @@ void handleAnotherUserLeftingTheGroup(char *command){
 
     for(int i; i<amountOfUsers; i++){
         if(strcmp(users[i], userId) == 0){
-            users[i] = "-1";
+            strcpy(users[i], "-1");
         }
     }
     printf("User %s left the group!\n", userId);
