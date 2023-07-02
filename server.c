@@ -54,8 +54,6 @@ void sendListOfUsers(int sock){
     memset(buf, 0, BUFSZ);
     sprintf(buf, "%s(", COMMAND_LIST_USERS);
 
-    printf("  sendListOfUsers 1\n");
-
     for(int i = 0; i < amountOfUsers - 1; i++){
         char temp[BUFSZ];
         memset(temp, 0, BUFSZ);
@@ -67,7 +65,6 @@ void sendListOfUsers(int sock){
     buf[strlen(buf)] = '\0';
 
     printf("%s\n", buf);
-    printf("  sendListOfUsers sock =  %i\n", sock);
 
     sendMessage(sock, buf);
 }
@@ -183,12 +180,16 @@ void sendMessageWithTimer(char *idUserTranmmissor, char *originalMessage, int so
     
     char messageToUsers[BUFSZ];
     memset(messageToUsers, 0, BUFSZ);
-    sprintf(messageToUsers, "MSG(%d, NULL, [%02d:%02d] %s:%s)", atoi(idUserTranmmissor), localTime->tm_hour, localTime->tm_min, idUserTranmmissor, originalMessage);
-    printf("Message to users\n");
+    sprintf(messageToUsers, "[%02d:%02d] %s:%s", localTime->tm_hour, localTime->tm_min, idUserTranmmissor, originalMessage);
     puts(messageToUsers);
+
+    char finalMessageToUsers[BUFSZ];
+    memset(finalMessageToUsers, 0, BUFSZ);
+    sprintf(finalMessageToUsers, "MSG(%d, NULL, [%02d:%02d] %s:%s)", atoi(idUserTranmmissor), localTime->tm_hour, localTime->tm_min, idUserTranmmissor, originalMessage);
+
     for(int i = 0; i < amountOfUsers; i++){
         if(users[i].id != -1 && users[i].id != sock){
-            sendMessage(users[i].sock, messageToUsers);
+            sendMessage(users[i].sock, finalMessageToUsers);
         }
     }
 
@@ -201,17 +202,30 @@ void sendMessageWithTimer(char *idUserTranmmissor, char *originalMessage, int so
     sendMessage(sock, messageToTransmiter);
 }
 
-void sendPublicMessage(char **items, char *command, int sock){
-    if(strcmp("NULL", items[1]) == 0){
-        for(int i = 0; i < amountOfUsers; i++){
-            if(users[i].id  == atoi(items[1])){
-                printf("Public message\n");
-                sendMessage(users[i].sock, command);
-            }
+void sendPrivateMessage(char **items){
+    time_t currentTime;
+    struct tm* localTime;
+    currentTime = time(NULL);
+    localTime = localtime(&currentTime);
+
+    char privateMessage[BUFSZ];
+    memset(privateMessage, 0, BUFSZ);
+    sprintf(privateMessage, "MSG(%s, %s, P [%02d:%02d] %s:%s)", items[0], items[1], localTime->tm_hour, localTime->tm_min, items[0], items[2]);
+
+    for(int i = 0; i < amountOfUsers; i++){
+        if(users[i].id  == atoi(items[1])){        
+            sendMessage(users[i].sock, privateMessage);
         }
-    }else {
-        printf("Item 0: %s Item 1: %s Item 2: %s\n", items[0], items[1], items[2]);
+    }
+}
+
+void sendPublicMessage(char **items, char *command, int sock){
+    printf("Item 0: %s Item 1: %s Item 2: %s\n", items[0], items[1], items[2]);
+    
+    if(strcmp(" NULL", items[1]) == 0){
         sendMessageWithTimer(items[0], items[2], sock);
+    }else {
+        sendPrivateMessage(items);
     }
     
 }

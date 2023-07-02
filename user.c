@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define BUFSZ 1024
 
@@ -193,9 +194,23 @@ void sendPrivateMessage(int sock){
     formatId(myId, idFormatted);
 
     sprintf(buf, "MSG(%s, %s, %s)", idFormatted, destinationId, privateMessage);
-    printf("sendPrivateMessage\n");
     sendMessage(sock, buf);
-    printf("Private message\n");
+
+    time_t currentTime;
+    struct tm* localTime;
+    currentTime = time(NULL);
+    localTime = localtime(&currentTime);
+
+    char finalDestinationId[BUFSZ];
+    memset(finalDestinationId, 0, BUFSZ);
+    strncpy(finalDestinationId, destinationId, strlen(destinationId)-1);
+
+
+    char confirmationPrivateMessage[BUFSZ];
+    memset(confirmationPrivateMessage, 0, BUFSZ);
+    sprintf(confirmationPrivateMessage, "P [%02d:%02d] -> %s: %s", localTime->tm_hour, localTime->tm_min, finalDestinationId, privateMessage);
+
+    printf("%s\n", confirmationPrivateMessage);
 }
 
 void identifyCommand(char *command, int s){
@@ -271,7 +286,7 @@ void *listenServer(void *socket){
         for (i = 0; i < total; ++i) {
             if (buf[i] == ')') {
                 char command[BUFSZ];
-               // memset(buf, 0, BUFSZ);
+                memset(command, 0, BUFSZ);
                // printf("Command start: %d, i = \n", commandStart);
                 strncpy(command, buf + commandStart, i+1);
                 command[i+2] = '\0';
