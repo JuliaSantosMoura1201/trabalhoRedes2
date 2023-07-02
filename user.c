@@ -252,11 +252,11 @@ void identifyCommand(char *command, int s){
         puts(command);
 
         //  GAMBIARRAAAAAAAAAAAAAAA
-        char temp[BUFSZ];
+        /*char temp[BUFSZ];
         memset(temp, 0, BUFSZ);
         strncpy(temp, command, strlen(command)-1);
-        printf("Gambiearra: %s\n", temp);
-        handleAnotherUserLeftingTheGroup(temp);
+        printf("Gambiearra: %s\n", temp);*/
+        handleAnotherUserLeftingTheGroup(command);
     }
     else {
         printf("command not identified\n");

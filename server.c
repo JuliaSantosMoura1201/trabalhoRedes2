@@ -64,17 +64,12 @@ void sendListOfUsers(int sock){
     strcat(buf, ")");
     buf[strlen(buf)] = '\0';
 
-    printf("%s\n", buf);
-
     sendMessage(sock, buf);
 }
 
 void broadcast(char *message){
-    printf("Amount of users %d\n", amountOfUsers);
     for(int i = 0; i < amountOfUsers; i++){
-        printf("ID users[%d].id = %d\n", i, users[i].id );
         if(users[i].id != -1){
-            printf("  broadcast sock %i %s\n", users[i].sock, message);
             sendMessage(users[i].sock, message);
         }
     }
@@ -105,8 +100,6 @@ void openConnection(struct sockaddr *caddr, int csock){
     sprintf(buf, "MSG(%d, NULL, User %s joined the group!)", newUser.id, idFormatted);
     buf[strlen(buf)] = '\0';
     broadcast(buf);
-
-    printf("  open connection before send list\n");
 }
 
 void removeUser(int userPosition){
@@ -145,7 +138,6 @@ void closeConnection(char *command, int sock){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "%s(%s)",COMMAND_CLOSE_CONNECTION, userFormatedId);
-    puts(buf);
     broadcast(buf);
 }
 
@@ -160,6 +152,7 @@ void readPrivateMessage(char **items, int sock, int amountOfItems){
     if(foundUser){
         sendMessage(sock, P_OK);
     }else{
+        printf("User %s not found\n", items[0]);
         sendErrorMessage(sock, ERROR_CODE_RECEIVER_NOT_FOUND);
     }
 
@@ -175,8 +168,6 @@ void sendMessageWithTimer(char *idUserTranmmissor, char *originalMessage, int so
     struct tm* localTime;
     currentTime = time(NULL);
     localTime = localtime(&currentTime);
-    printf("Current time: %02d:%02d\n", localTime->tm_hour, localTime->tm_min);
-
     
     char messageToUsers[BUFSZ];
     memset(messageToUsers, 0, BUFSZ);
@@ -197,8 +188,6 @@ void sendMessageWithTimer(char *idUserTranmmissor, char *originalMessage, int so
     char messageToTransmiter[BUFSZ];
     memset(messageToTransmiter, 0, BUFSZ);
     sprintf(messageToTransmiter, "MSG(%d, NULL, [%02d:%02d] -> all:%s)", atoi(idUserTranmmissor), localTime->tm_hour, localTime->tm_min, originalMessage);
-    printf("Message to transmiter\n");
-    puts(messageToTransmiter);
     sendMessage(sock, messageToTransmiter);
 }
 
@@ -220,14 +209,11 @@ void sendPrivateMessage(char **items){
 }
 
 void sendPublicMessage(char **items, char *command, int sock){
-    printf("Item 0: %s Item 1: %s Item 2: %s\n", items[0], items[1], items[2]);
-    
     if(strcmp(" NULL", items[1]) == 0){
         sendMessageWithTimer(items[0], items[2], sock);
     }else {
         sendPrivateMessage(items);
     }
-    
 }
 
 void readMessage(char *command, int sock){
@@ -239,11 +225,8 @@ void readMessage(char *command, int sock){
     char **items = splitString(msg, ",", &amountOfItems, amountOfItems);
 
     if(amountOfItems == 2){
-        printf("PRIVATE\n");
         readPrivateMessage(items, sock, amountOfItems);
     }else if(amountOfItems == 3){
-        printf("PUBLIC\n");
-        
         sendPublicMessage(items, command, sock);
     }
 }
@@ -259,12 +242,6 @@ void identifyCommand(char *command, struct sockaddr *caddr, struct client_data *
         closeConnection(command, cdata->csock);
     }else if(strncmp(command, COMMAND_MESSAGE, strlen(COMMAND_MESSAGE)) == 0) {
        readMessage(command, cdata->csock);
-    }else if(strncmp(command, COMMAND_ERROR, strlen(COMMAND_ERROR)) == 0) {
-        printf("COMMAND_ERROR\n");
-    }else if(strncmp(command, COMMAND_LIST_USERS, strlen(COMMAND_LIST_USERS)) == 0) {
-         printf("COMMAND_LIST_USERS\n");
-    } else {
-        //printf("command not identified\n");
     }
 }
 
@@ -351,7 +328,6 @@ int main(int argc, char **argv){
         pthread_t tid;
         pthread_create(&tid, NULL, client_thread, cdata);
         
-        //pthread_join(tid, NULL);
     }
     exit(EXIT_SUCCESS);
 }
