@@ -12,6 +12,7 @@
 
 User users[MAX_OF_USERS];
 int amountOfUsers = 0;
+int amountOfValidUsers = 0;
 int nextId = 1;
 
 struct client_data {
@@ -29,6 +30,7 @@ User addUserToList(User *usersList, uint16_t port, int sock) {
 
             nextId++;
             amountOfUsers++;
+            amountOfValidUsers++;
             return users[i];
         }
     }
@@ -42,6 +44,7 @@ User addUserToList(User *usersList, uint16_t port, int sock) {
 
     nextId++;
     amountOfUsers++;
+    amountOfValidUsers++;
     return newUser;
 }
 
@@ -69,7 +72,9 @@ void sendListOfUsers(int sock){
 }
 
 void broadcast(char *message){
+    printf("Amount of users %d\n", amountOfUsers);
     for(int i = 0; i < amountOfUsers; i++){
+        printf("ID users[%d].id = %d", i, users[i].id );
         if(users[i].id != -1){
             printf("  broadcast sock %i %s\n", users[i].sock, message);
             sendMessage(users[i].sock, message);
@@ -86,7 +91,7 @@ void sendErrorMessage(int sock, char* errorCode){
 }
 
 void openConnection(struct sockaddr *caddr, int csock){
-    if(amountOfUsers == MAX_OF_USERS){
+    if(amountOfValidUsers == MAX_OF_USERS){
         sendErrorMessage(csock, ERROR_CODE_USER_LIMIT_EXCEED);
         return;
     }
@@ -107,7 +112,7 @@ void openConnection(struct sockaddr *caddr, int csock){
 }
 
 void removeUser(int userPosition){
-    amountOfUsers--;
+    amountOfValidUsers--;
     users[userPosition].id = -1;
 }
 
@@ -142,6 +147,7 @@ void closeConnection(char *command, int sock){
     char buf[BUFSZ];
     memset(buf, 0, BUFSZ);
     sprintf(buf, "%s(%s)",COMMAND_CLOSE_CONNECTION, userFormatedId);
+    puts(buf);
     broadcast(buf);
 }
 

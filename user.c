@@ -43,7 +43,9 @@ void aksUsersList(){
     printf("Amount of users: %d\n", amountOfUsers);
     printf("X user list = %p, users[0]= %s\n", users, users[0]);
     for (int i = 0; i < amountOfUsers; i++) {
-        printf("User: %s ", users[i]);
+        if(strcmp(users[i], "-1") != 0){
+            printf("%s ", users[i]);
+        }
     }
     printf("\n");
 }
@@ -99,7 +101,10 @@ void readMessage(char *command){
         //printf("readMessage if %p %zu", users, sizeof(users));
         myId = atoi(items[0]);
     }else{
-        strcpy(users[amountOfUsers], items[0]);
+        char idFormatted[10];
+        formatId(atoi(items[0]), idFormatted);
+
+        strcpy(users[amountOfUsers], idFormatted);
         //users[amountOfUsers] = malloc(2 * sizeof(char));
         printf(">> users[0] = %p\n", users[0]);
         //users[amountOfUsers] = items[0];
@@ -127,8 +132,10 @@ void receiveUsersOnServer(char *command){
     getsMessageContent(command, usersList, COMMAND_LIST_USERS);
     printf("receive userList %s \n", usersList);
     char **newUsers = splitString(usersList, ",", &amountOfUsers, 50);
-    for (int i = 0; i < amountOfUsers; ++i) {
-        strcpy(users[i], newUsers[i]);
+    for (int i = 0; i < amountOfUsers; ++i) {  
+        char idFormatted[10];
+        formatId(atoi(newUsers[i]), idFormatted);
+        strcpy(users[i], idFormatted);
         free(newUsers[i]);
     }
     free(newUsers);
@@ -165,13 +172,19 @@ void handleAnotherUserLeftingTheGroup(char *command){
     char userId[BUFSZ];
     memset(userId, 0, BUFSZ);
     getsMessageContent(command, userId, COMMAND_CLOSE_CONNECTION);
+    
+    char idFormatted[10];
+    formatId(atoi(userId), idFormatted);
+    printf("MessageContent: %s\n", userId);
 
     for(int i; i<amountOfUsers; i++){
-        if(strcmp(users[i], userId) == 0){
+        if(strcmp(users[i], idFormatted) == 0){
             strcpy(users[i], "-1");
+            printf("Removeu\n");
         }
     }
-    printf("User %s left the group!\n", userId);
+
+    printf("User %s left the group!\n", idFormatted);
 }
 
 void sendPrivateMessage(int sock){
@@ -222,26 +235,19 @@ void identifyCommand(char *command, int s){
         sendPrivateMessage(s);
     }else if(strncmp(command, COMMAND_CLOSE_CONNECTION, strlen(COMMAND_CLOSE_CONNECTION)) == 0) {
         printf("handleAnotherUserLeftingTheGroup\n");
-        handleAnotherUserLeftingTheGroup(command);
+        
+        puts(command);
+
+        //  GAMBIARRAAAAAAAAAAAAAAA
+        char temp[BUFSZ];
+        memset(temp, 0, BUFSZ);
+        strncpy(temp, command, strlen(command)-1);
+        printf("Gambiearra: %s\n", temp);
+        handleAnotherUserLeftingTheGroup(temp);
     }
     else {
         printf("command not identified\n");
     }
-}
-
-void listenServerUnicast(int s){
-    char buf[BUFSZ];
-    memset(buf, 0, BUFSZ);
-    unsigned total = 0;
-    while(1){
-        size_t count = recv(s, buf + total, BUFSZ - total, 0);
-        if(buf[strlen(buf) - 1] == ')'){
-            // Connection terminated
-            break;
-        }
-        total += count;
-    }
-    puts(buf);
 }
 
 void *listenServer(void *socket){
@@ -265,29 +271,19 @@ void *listenServer(void *socket){
         int i = 0;
         int commandStart = 0;
         for (i = 0; i < total; ++i) {
-//            printf("buf[%i] = %c ->\n", i, buf[i]);
-            /*if (buf[i] == '\n') {
-                commandStart = i+1; 
-            }*/
-
             if (buf[i] == ')') {
                 char command[BUFSZ];
+               // memset(buf, 0, BUFSZ);
+               // printf("Command start: %d, i = \n", commandStart);
                 strncpy(command, buf + commandStart, i+1);
                 command[i+2] = '\0';
                 printf(">> command = %s\n", command);
                 identifyCommand(command, s);
-                commandStart = i +1;
+                commandStart = i +2;
  //               printf(">> COMMAND START: %i %i\n", buf[commandStart], '\n');
             }
         }
-/*
-        int amountOfItems = 10;
-        char **items = splitString(buf, ")", &amountOfItems, amountOfItems);
-        printf("%d", amountOfItems);
-        for(int i = 0; buf[i]; i++){
-           printf("Item[%d] = %s\n", i, items[i]);
-            identifyCommand(items[i], s);
-        } */
+        
         memset(buf, 0, BUFSZ);   
     }
     pthread_exit(NULL);
