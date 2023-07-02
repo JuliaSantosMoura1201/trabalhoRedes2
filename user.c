@@ -131,6 +131,7 @@ void receiveUsersOnServer(char *command){
 void identifyError(char *errorCode){
     if (strncmp(errorCode, ERROR_CODE_USER_LIMIT_EXCEED, strlen(ERROR_CODE_USER_LIMIT_EXCEED)) == 0) {
         puts( "User limit exceeded");
+        exit(EXIT_SUCCESS);
     }else if(strncmp(errorCode, ERROR_CODE_USER_NOT_FOUND, strlen(ERROR_CODE_USER_NOT_FOUND)) == 0) {
         puts( "User not found");
     }else if(strncmp(errorCode, ERROR_CODE_RECEIVER_NOT_FOUND, strlen(ERROR_CODE_RECEIVER_NOT_FOUND)) == 0) {
